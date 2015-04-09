@@ -437,7 +437,7 @@ WARN_UNUSED_RESULT int modifyIncomingPacketMark(unsigned netId, const char* inte
     char markString[UINT32_HEX_STRLEN];
     snprintf(markString, sizeof(markString), "0x%x", fwmark.intValue);
 
-    if (execIptables(V4V6, "-t", "mangle", add ? "-A" : "-D", "INPUT", "-i", interface, "-j",
+    if (execIptables(V4V6, "-w", "-t", "mangle", add ? "-A" : "-D", "INPUT", "-i", interface, "-j",
                      "MARK", "--set-mark", markString, NULL)) {
         ALOGE("failed to change iptables rule that sets incoming packet mark");
         return -EREMOTEIO;
@@ -813,11 +813,8 @@ WARN_UNUSED_RESULT int modifyRoute(uint16_t action, const char* interface, const
     }
 
     int ret = modifyIpRoute(action, table, interface, destination, nexthop);
-    // We allow apps to call requestRouteToHost() multiple times with the same route, so ignore
-    // EEXIST failures when adding routes to legacy tables.
-    if (ret && !(action == RTM_NEWROUTE && ret == -EEXIST &&
-                 (tableType == RouteController::LEGACY_NETWORK ||
-                  tableType == RouteController::LEGACY_SYSTEM))) {
+    // Trying to add a route that already exists shouldn't cause an error.
+    if (ret && !(action == RTM_NEWROUTE && ret == -EEXIST)) {
         return ret;
     }
 
